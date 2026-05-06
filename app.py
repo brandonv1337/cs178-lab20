@@ -327,4 +327,4 @@ def search():
 
 if __name__ == "__main__":
     # Port 8888 avoids conflict with Project 1 (port 5000) and Lab 12 (port 8080).
-    app.run(host="0.0.0.0", port=8888, debug=True)
+    app.run(host="0.0.0.0", port=8889, debug=True)
