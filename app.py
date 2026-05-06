@@ -139,19 +139,44 @@ def build_good_chart(df, display_name, types):
 
     # ── START: Replace this with your radar chart, then update the color ───────
 
-    # Step 1 — paste the radar chart code from the lab doc here.
+      # Convert primary type's hex color to rgba
+    hex_color = TYPE_COLORS[types[0]]
+    r = int(hex_color[1:3], 16)
+    g = int(hex_color[3:5], 16)
+    b = int(hex_color[5:7], 16)
+
+    fill   = f"rgba({r}, {g}, {b}, 0.3)"
+    border = f"rgba({r}, {g}, {b}, 1.0)"
+
+    stats  = df["stat"].tolist()
+    values = df["value"].tolist()
+    stats_closed  = stats  + [stats[0]]
+    values_closed = values + [values[0]]
+
+    good_fig = go.Figure()
+    good_fig.add_trace(go.Scatterpolar(
+        r=values_closed,
+        theta=stats_closed,
+        fill="toself",
+        fillcolor=fill,    # ← dynamic type color (semi-transparent)
+        line=dict(color=border),  # ← dynamic type color (fully opaque)
+        name=display_name,
+    ))
+    good_fig.update_layout(
+        title=f"{display_name} — Base Stat Radar",
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 160],
+            )
+        ),
+    )
 
     # Step 2 — replace the hardcoded fillcolor and line color with the
     #           color for this Pokémon's primary type. For example, if the
     #           primary type is "fire" the color would be TYPE_COLORS["fire"].
     #           Use types[0] to always get the primary type dynamically.
 
-    good_fig = px.pie(
-        df,
-        names="stat",
-        values="value",
-        color="stat",
-    )
 
 
     # ── END ────────────────────────────────────────────────────────────────────
@@ -160,19 +185,68 @@ def build_good_chart(df, display_name, types):
 
 def build_my_chart(df, display_name, types):
     """
-    TODO (Part B): Students replace this placeholder with their own chart.
-
-    Use 'df' — it has two columns: "stat" and "value".
-    'types' is available here too if you want to use the type color.
-    Pick a chart type different from both the pie and the radar.
-    Your chart should work well for any Pokémon, not just Charizard.
+    Horizontal lollipop chart sorted by stat value (ascending, so the
+    highest stat sits at the top).  Uses a colorblind-safe Okabe-Ito
+    palette — one color per stat so bars are easy to distinguish at a
+    glance.
     """
-    # ── Replace this placeholder with your own chart ───────────────────────────
+
+    # ── Colorblind-safe Okabe-Ito palette (6 colors for 6 stats) ──────────
+    OKABE_ITO = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00"]
+
+    # Sort ascending so the strongest stat appears at the top of the chart
+    df_sorted = df.sort_values("value", ascending=True).reset_index(drop=True)
+
+    colors = [OKABE_ITO[i % len(OKABE_ITO)] for i in range(len(df_sorted))]
+
     fig = go.Figure()
-    fig.update_layout(
-        title="Your chart goes here — edit build_my_chart() in app.py",
+
+    # ── Stems (horizontal lines from 0 → value) ───────────────────────────
+    for i, row in df_sorted.iterrows():
+        fig.add_shape(
+            type="line",
+            x0=0, x1=row["value"],
+            y0=i, y1=i,
+            line=dict(color=colors[i], width=2),
+        )
+
+    # ── Dots at the tip of each stem ──────────────────────────────────────
+    fig.add_trace(
+        go.Scatter(
+            x=df_sorted["value"],
+            y=df_sorted["stat"],
+            mode="markers+text",
+            marker=dict(color=colors, size=14, line=dict(width=1, color="white")),
+            text=df_sorted["value"],
+            textposition="middle right",
+            textfont=dict(size=12),
+            hovertemplate="<b>%{y}</b>: %{x}<extra></extra>",
+            showlegend=False,
+        )
     )
-    # ── End of placeholder ─────────────────────────────────────────────────────
+
+    # ── Layout ─────────────────────────────────────────────────────────────
+    fig.update_layout(
+        title=dict(
+            text=f"{display_name} — Base Stats",
+            font=dict(size=18),
+        ),
+        xaxis=dict(
+            title="Base Stat Value",
+            range=[0, max(df_sorted["value"]) * 1.2],   # room for labels
+            showgrid=True,
+            gridwidth=1,
+        ),
+        yaxis=dict(
+            title="Stat",
+            tickmode="array",
+            tickvals=list(range(len(df_sorted))),
+            ticktext=df_sorted["stat"].tolist(),
+        ),
+        margin=dict(l=80, r=60, t=60, b=50),
+        height=380,
+    )
+
     return apply_dark_theme(fig)
 
 
